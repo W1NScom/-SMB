@@ -1,0 +1,212 @@
+// Основная функция, которая проверяет циклы и интервалы, а также добавляет новую строку в отчетность
+function checkCyclesAndIntervals() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var observeSheet = spreadsheet.getSheetByName("НАБЛЮДЕНИЕ");
+  var reportSheet = spreadsheet.getSheetByName("ОТЧЕТНОСТЬ");
+
+  // --- Верхний диапазон (B4:W78) ---
+  var machineNumbersRange1 = observeSheet.getRange("J4:W4").getValues()[0]; // Номера машин для первого диапазона
+  var cycleNumbersRange1 = observeSheet.getRange("J5:W5").getValues()[0]; // Циклы для первого диапазона
+  var taskIntervalsRange1 = observeSheet.getRange("H6:H78").getValues(); // Интервалы задач для первого диапазона
+  var taskNumbersRange1 = observeSheet.getRange("B6:B78").getValues(); // Номера задач для первого диапазона
+  var schemasRange1 = observeSheet.getRange("G6:G78").getRichTextValues(); // Схемы задач для первого диапазона
+
+  // --- Нижний диапазон (B80:W91) ---
+  var machineNumbersRange2 = observeSheet.getRange("J80:W80").getValues()[0]; // Номера машин для второго диапазона
+  var cycleNumbersRange2 = observeSheet.getRange("J81:W81").getValues()[0]; // Циклы для второго диапазона
+  var taskIntervalsRange2 = observeSheet.getRange("H82:H91").getValues(); // Интервалы задач для второго диапазона
+  var taskNumbersRange2 = observeSheet.getRange("B82:B91").getValues(); // Номера задач для второго диапазона
+  var schemasRange2 = observeSheet.getRange("G82:G91").getRichTextValues(); // Схемы задач для второго диапазона
+
+  var existingEntries = reportSheet.getRange(5, 1, reportSheet.getLastRow() - 4, 5).getValues(); // Уже существующие записи
+
+  var newEntries = []; // Храним данные для новых строк в отчете
+  var cellsToColor = []; // Храним информацию для закрашивания ячеек
+
+  // Проверка, если запись уже была добавлена для текущего диапазона циклов
+  function entryExistsInInterval(cycleNumber, taskNumber, machineNumber, taskInterval) {
+    var startInterval = Math.floor(cycleNumber / taskInterval) * taskInterval;
+    var endInterval = startInterval + taskInterval - 1;
+
+    return existingEntries.some(function(row) {
+      var recordedCycle = row[0];
+      var recordedTaskNumber = row[1];
+      var recordedMachineNumber = row[2];
+      return recordedTaskNumber == taskNumber &&
+             recordedMachineNumber == machineNumber &&
+             recordedCycle >= startInterval && recordedCycle <= endInterval;
+    });
+  }
+
+  // Функция для обработки одного диапазона
+  function processRange(taskIntervals, taskNumbers, schemas, machineNumbers, cycleNumbers, rowOffset) {
+    for (var i = 0; i < taskIntervals.length; i++) {
+      var taskInterval = taskIntervals[i][0]; // Интервал задачи
+      var taskNumber = taskNumbers[i][0]; // Номер задачи
+      var schema = schemas[i][0]; // Схема задачи с гиперссылкой
+
+      // Проверяем каждый цикл
+      for (var j = 0; j < cycleNumbers.length; j++) {
+        var cycleNumber = cycleNumbers[j];
+        var machineNumber = machineNumbers[j];
+
+        // Проверяем, что цикл больше или равен интервалу
+        if (cycleNumber >= taskInterval) {
+          // Проверяем, была ли уже добавлена запись для текущего интервала
+          if (!entryExistsInInterval(cycleNumber, taskNumber, machineNumber, taskInterval)) {
+            // Добавляем новую запись в отчетность в массив
+            newEntries.push([cycleNumber, taskNumber, machineNumber, schema, new Date()]);
+
+            // Подготовка для закрашивания ячеек (закрашиваем ячейку в строке i + rowOffset и колонке j + 10)
+            cellsToColor.push({ row: i + rowOffset, startCol: j + 10, endCol: j + 10 });
+          }
+        }
+      }
+    }
+  }
+
+  // Функция для обработки нижнего диапазона (парные ячейки)
+  function processLowerRange(taskIntervals, taskNumbers, schemas, machineNumbers, cycleNumbers, rowOffset) {
+    for (var i = 0; i < taskIntervals.length; i++) {
+      var taskInterval = taskIntervals[i][0]; // Интервал задачи
+      var taskNumber = taskNumbers[i][0];     // Номер задачи
+      var schema = schemas[i][0];             // Схема задачи с гиперссылкой
+
+      // Проверяем каждый цикл
+      for (var j = 0; j < cycleNumbers.length; j += 2) {  // Парные столбцы
+        var cycleNumber1 = cycleNumbers[j];     // Цикл первой машины
+        var cycleNumber2 = cycleNumbers[j + 1]; // Цикл второй машины
+        var machineNumber1 = machineNumbers[j]; // Номер первой машины
+        var machineNumber2 = machineNumbers[j + 1]; // Номер второй машины
+
+        // Проверяем, что сумма циклов больше или равна интервалу
+        var cycleSum = cycleNumber1 + cycleNumber2;
+        if (cycleSum >= taskInterval) {
+          // Проверяем, была ли уже добавлена запись для текущего интервала
+          if (!entryExistsInInterval(cycleSum, taskNumber, machineNumber1 + " & " + machineNumber2, taskInterval)) {
+            // Добавляем новую запись в отчетность в массив
+            newEntries.push([cycleSum, taskNumber, machineNumber1 + " & " + machineNumber2, schema, new Date()]);
+
+            // Подготовка для закрашивания ячеек (закрашиваем ячейки парных машин)
+            cellsToColor.push({ row: i + rowOffset, startCol: j + 10, endCol: j + 11 });
+          }
+        }
+      }
+    }
+  }
+
+  // Обрабатываем оба диапазона
+  processRange(taskIntervalsRange1, taskNumbersRange1, schemasRange1, machineNumbersRange1, cycleNumbersRange1, 6); // Верхний диапазон (B4:W78)
+  processLowerRange(taskIntervalsRange2, taskNumbersRange2, schemasRange2, machineNumbersRange2, cycleNumbersRange2, 82); // Нижний диапазон (B80:W91)
+
+  // Записываем все новые записи в отчетность
+  if (newEntries.length > 0) {
+    reportSheet.insertRowsBefore(5, newEntries.length);
+    for (var i = 0; i < newEntries.length; i++) {
+      reportSheet.getRange(5 + i, 1, 1, 4).setValues([newEntries[i].slice(0, 4)]); // Записываем цикл, задачу, машину
+      reportSheet.getRange(5 + i, 4).setRichTextValue(newEntries[i][3]); // Устанавливаем схему как RichTextValue
+      reportSheet.getRange(5 + i, 5).setValue(newEntries[i][4]); // Устанавливаем дату
+    }
+  }
+
+  // Закрашиваем все необходимые ячейки
+  cellsToColor.forEach(function(cellInfo) {
+    observeSheet.getRange(cellInfo.row, cellInfo.startCol, 1, cellInfo.endCol - cellInfo.startCol + 1).setBackground('#dc143c');
+  });
+}
+
+// Функция для снятия закрашивания ячеек на листе "НАБЛЮДЕНИЕ" при появлении нового статуса "Выполнено" в листе "ОТЧЕТНОСТЬ"
+function clearHighlightOnCompletion() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var observeSheet = spreadsheet.getSheetByName("НАБЛЮДЕНИЕ");
+  var reportSheet = spreadsheet.getSheetByName("ОТЧЕТНОСТЬ");
+
+  var machineNumbersRange1 = observeSheet.getRange("J4:W4").getValues()[0]; // Номера машин для первого диапазона
+  var taskNumbersRange1 = observeSheet.getRange("B6:B78").getValues(); // Номера задач для первого диапазона
+  var cycleNumbersRange1 = observeSheet.getRange("J5:W5").getValues()[0]; // Циклы для первого диапазона
+
+  var machineNumbersRange2 = observeSheet.getRange("J80:W80").getValues()[0]; // Номера машин для второго диапазона
+  var taskNumbersRange2 = observeSheet.getRange("B82:B91").getValues(); // Номера задач для второго диапазона
+  var cycleNumbersRange2 = observeSheet.getRange("J81:W81").getValues()[0]; // Циклы для второго диапазона
+
+  var lastRowReport = reportSheet.getLastRow(); // Последняя строка на листе "ОТЧЕТНОСТЬ"
+
+  function processCompletion(machineNumbersRange, taskNumbersRange, cycleNumbersRange, rowOffset) {
+    for (var row = 5; row <= lastRowReport; row++) {
+      var status = reportSheet.getRange(row, 8).getValue(); // Колонка H, статус "Выполнено"
+      var taskNumber = reportSheet.getRange(row, 2).getValue(); // Колонка B, номер задачи
+      var machineInfo = reportSheet.getRange(row, 3).getValue(); // Колонка C, номера машин
+      var cycleReport = reportSheet.getRange(row, 1).getValue(); // Колонка A, цикл в отчете
+
+      if (status === "Выполнено" && cycleReport) {
+        var machineList = typeof machineInfo === "string" ? machineInfo.split(" & ") : [machineInfo];
+
+        machineList.forEach(function(machineNumber) {
+          for (var j = 0; j < machineNumbersRange.length; j++) {
+            if (machineNumbersRange[j] == machineNumber) {
+              for (var i = 0; i < taskNumbersRange.length; i++) {
+                if (taskNumbersRange[i][0] == taskNumber) {
+                  var currentCycle = cycleNumbersRange[j];
+                  var startRange = Math.floor(currentCycle / 100) * 100;
+                  var endRange = startRange + 99;
+
+                  if (cycleReport >= startRange && cycleReport <= endRange) {
+                    observeSheet.getRange(i + rowOffset, j + 10).setBackground(null); // Снимаем цвет
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  // Обрабатываем оба диапазона
+  processCompletion(machineNumbersRange1, taskNumbersRange1, cycleNumbersRange1, 6); // Верхний диапазон
+  processCompletion(machineNumbersRange2, taskNumbersRange2, cycleNumbersRange2, 82); // Нижний диапазон
+}
+
+// Функция для обработки изменений на листах
+function onEdit(e) {
+  var sheet = e.source.getActiveSheet();
+
+  if (sheet.getName() === "ОТЧЕТНОСТЬ") {
+    var range = e.range;
+    var column = range.getColumn();
+    var row = range.getRow();
+
+    if (column === 7 && row >= 5) {
+      var value = range.getValue();
+      if (value !== "") {
+        var currentDate = new Date();
+        sheet.getRange(row, 6).setValue(currentDate); // Колонка F (Дата выполнения)
+        sheet.getRange(row, 8).setValue('Выполнено'); // Колонка H (Метка "Выполнено")
+        clearHighlightOnCompletion(); // Снимаем закрашивание на листе "НАБЛЮДЕНИЕ"
+      }
+    }
+  }
+
+  if (sheet.getName() === "НАБЛЮДЕНИЕ") {
+    checkCyclesAndIntervals();
+  }
+}
+
+// Вызов всех функций при необходимости
+function checkAndProcessAll() {
+  checkCyclesAndIntervals();
+  clearHighlightOnCompletion();
+}
+
+// Установка триггера на выполнение проверки
+function setupTimedTrigger() {
+  const allTriggers = ScriptApp.getProjectTriggers();
+  allTriggers.forEach(trigger => {
+    ScriptApp.deleteTrigger(trigger);  // Удаляем существующие триггеры
+  });
+
+  ScriptApp.newTrigger('checkAndProcessAll')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+}
