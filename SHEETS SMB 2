@@ -1,0 +1,58 @@
+function importAndCustomRoundToThousand() {
+  // URL таблицы-источника
+  var sourceUrl = 'https://docs.google.com/spreadsheets/d/1lxGjh5OShWYFY9n1XuK7cNPQIa4Nf0EvQTUtQobLNe4/edit';
+  
+  // Открываем таблицу-источник
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceUrl);
+  
+  // Открываем текущую таблицу
+  var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var targetSheet = targetSpreadsheet.getSheetByName('НАБЛЮДЕНИЕ'); // Укажите ваш лист
+  
+  // Задаем диапазон ячеек в целевой таблице, куда будут помещены данные
+  var startColumn = 10; // Колонка J = 10
+  var targetRow = 5;    // Ряд 5
+
+  // Импорт данных с листов PS1-PS14
+  for (var i = 1; i <= 14; i++) {
+    var sheetName = 'PS' + i; // Формируем название листа (PS1, PS2 и т.д.)
+    
+    // Открываем нужный лист в таблице-источнике
+    var sourceSheet = sourceSpreadsheet.getSheetByName(sheetName);
+    
+    // Читаем значение из ячейки C2 на каждом листе
+    var data = sourceSheet.getRange('C2').getValue();
+    
+    // Применяем логику округления по правилам
+    var result;
+    if (data < 1000) {
+      result = 0; // Если меньше 1000, округляем до 0
+    } else {
+      result = Math.floor(data / 1000) * 1000; // Округляем вниз до ближайшей 1000
+    }
+    
+    // Вставляем результат в соответствующую колонку целевой таблицы
+    targetSheet.getRange(targetRow, startColumn + (i - 1)).setValue(result);
+  }
+  
+  // Проверка и создание триггера, если он не существует
+  createTriggerIfNotExists();
+}
+
+// Функция для создания триггера на обновление раз в минуту
+function createTriggerIfNotExists() {
+  var triggers = ScriptApp.getProjectTriggers();
+  
+  // Проверяем, есть ли уже триггер на выполнение importAndCustomRoundToThousand
+  var triggerExists = triggers.some(function(trigger) {
+    return trigger.getHandlerFunction() === 'importAndCustomRoundToThousand' && trigger.getEventType() === ScriptApp.EventType.TIME_BASED;
+  });
+  
+  // Если триггера нет, создаем его
+  if (!triggerExists) {
+    ScriptApp.newTrigger('importAndCustomRoundToThousand')
+      .timeBased()
+      .everyMinutes(1) // Запускать каждую минуту
+      .create();
+  }
+}
