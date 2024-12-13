@@ -1,0 +1,58 @@
+function importAndCustomRoundToThousand() {
+  // Обновленная URL таблицы-источника
+  var sourceUrl = 'https://docs.google.com/spreadsheets/d/1tqBXE2LP9VsHy40NjS2cqoOlbQqxm4IA21kqRX-NUh4/edit?usp=sharing';
+  
+  // Открываем таблицу-источника
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceUrl);
+  
+  // Открываем текущую таблицу
+  var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var targetSheet = targetSpreadsheet.getSheetByName('НАБЛЮДЕНИЕ'); // Укажите ваш лист
+  
+  // Задаем диапазон ячеек в целевой таблице, куда будут помещены данные
+  var startColumn = 10; // Колонка J = 10
+  var targetRow = 5;    // Ряд 5
+
+  // Импорт данных с листов PS1-PS16
+  for (var i = 1; i <= 16; i++) { // Обрабатываем 16 листов вместо 14
+    var sheetName = 'PS' + i; // Формируем название листа (PS1, PS2 и т.д.)
+    
+    // Открываем нужный лист в таблице-источнике
+    var sourceSheet = sourceSpreadsheet.getSheetByName(sheetName);
+    
+    // Читаем значение из ячейки C2 на каждом листе
+    var data = sourceSheet.getRange('C2').getValue();
+    
+    // Применяем логику округления по правилам
+    var result;
+    if (data < 2000) { 
+      result = 0; // Если меньше 2000, округляем до 0 
+    } else {
+      result = Math.floor(data / 2000) * 2000; // Округляем вниз до ближайшей 2000 
+    }
+    
+    // Вставляем результат в соответствующую колонку целевой таблицы
+    targetSheet.getRange(targetRow, startColumn + (i - 1)).setValue(result);
+  }
+  
+  // Проверка и создание триггера, если он не существует
+  deleteAllTriggers();
+  createTriggerIfNotExists();
+}
+
+// Функция для удаления всех существующих триггеров
+function deleteAllTriggers() {
+  var triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(trigger) {
+    ScriptApp.deleteTrigger(trigger);
+  });
+}
+
+// Функция для создания триггера на обновление раз в минуту
+function createTriggerIfNotExists() {
+  // Создаем новый триггер
+  ScriptApp.newTrigger('importAndCustomRoundToThousand')
+    .timeBased()
+    .everyMinutes(1) // Запускать каждую минуту
+    .create();
+}
