@@ -205,7 +205,7 @@ function setupTimedTrigger() {
     ScriptApp.deleteTrigger(trigger);  // Удаляем существующие триггеры
   });
 
-  ScriptApp.newTrigger('checkAndProcessAll')
+  ScriptApp.newTrigger('checkCyclesAndIntervals')
     .timeBased()
     .everyMinutes(1)
     .create();
