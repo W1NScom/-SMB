@@ -1,6 +1,6 @@
 function importAndCustomRoundToThousand() {
   // Обновленная URL таблицы-источника
-  var sourceUrl = 'https://docs.google.com/spreadsheets/d/1tqBXE2LP9VsHy40NjS2cqoOlbQqxm4IA21kqRX-NUh4/edit?usp=sharing';
+  var sourceUrl = 'https://docs.google.com/spreadsheets/d/1Y4bGcY2qY3w9L4Lp4n5fGA_o3u0_c7IbXiI30DO_L3o/edit?usp=sharing';
   
   // Открываем таблицу-источника
   var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceUrl);
@@ -25,10 +25,10 @@ function importAndCustomRoundToThousand() {
     
     // Применяем логику округления по правилам
     var result;
-    if (data < 2000) { 
+    if (data < 3000) { 
       result = 0; // Если меньше 2000, округляем до 0 
     } else {
-      result = Math.floor(data / 2000) * 2000; // Округляем вниз до ближайшей 2000 
+      result = Math.floor(data / 3000) * 3000; // Округляем вниз до ближайшей 2000 
     }
     
     // Вставляем результат в соответствующую колонку целевой таблицы
@@ -40,19 +40,3 @@ function importAndCustomRoundToThousand() {
   createTriggerIfNotExists();
 }
 
-// Функция для удаления всех существующих триггеров
-function deleteAllTriggers() {
-  var triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(function(trigger) {
-    ScriptApp.deleteTrigger(trigger);
-  });
-}
-
-// Функция для создания триггера на обновление раз в минуту
-function createTriggerIfNotExists() {
-  // Создаем новый триггер
-  ScriptApp.newTrigger('importAndCustomRoundToThousand')
-    .timeBased()
-    .everyMinutes(1) // Запускать каждую минуту
-    .create();
-}
